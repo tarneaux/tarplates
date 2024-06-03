@@ -1,45 +1,32 @@
 {
-  description = "A rust development environment";
+  description = "A very basic flake";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs }:
-    let
-      systems = [
-        "aarch64-linux"
-        "i686-linux"
-        "x86_64-linux"
-        "aarch64-darwin"
-        "x86_64-darwin"
-      ];
-      forAllSystems = nixpkgs.lib.genAttrs systems;
-    in
-    {
-      devShells = forAllSystems (system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          default = pkgs.mkShell {
-            name = "my-shell-${system}";
-            packages = [
-              pkgs.bacon
-              pkgs.cargo
-              pkgs.cargo-expand
-              pkgs.clippy
-              pkgs.openssl
-              pkgs.pkg-config
-              pkgs.rust-analyzer
-              pkgs.rustc
-              pkgs.rustfmt
-            ];
-            shellHook = ''
-              export PKG_CONFIG_PATH="${pkgs.openssl.dev}/lib/pkgconfig";
-            '';
-          };
-        }
-      );
-    };
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          buildInputs = with pkgs; [
+            openssl
+            pkg-config
+            bacon
+            (rust-bin.stable.latest.default.override {
+              extensions = [ "rust-src" "rust-analyzer" ];
+              targets = [ "wasm32-unknown-unknown" ];
+            })
+          ];
+        };
+      }
+    );
 }
