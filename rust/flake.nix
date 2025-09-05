@@ -4,13 +4,13 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay.url = "github:oxalica/rust-overlay";
+    nixpkgs-mozilla.url = "github:mozilla/nixpkgs-mozilla";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+  outputs = { self, nixpkgs, flake-utils, nixpkgs-mozilla }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
+        overlays = [ nixpkgs-mozilla.overlays.rust ];
         pkgs = import nixpkgs {
           inherit system overlays;
         };
@@ -21,11 +21,9 @@
             openssl
             pkg-config
             bacon
-            (rust-bin.stable.latest.default.override {
-              extensions = [ "rust-src" "rust-analyzer" ];
-              targets = [ "wasm32-unknown-unknown" ];
-            })
+            (rustChannelOf { date = "2025-05-24"; channel = "nightly"; }).rust
           ];
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.openssl ];
         };
       }
     );
